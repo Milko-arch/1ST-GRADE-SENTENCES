@@ -49,18 +49,19 @@
             transform: scale(1.02);
             background: rgba(255, 255, 255, 0.4);
         }
-        .correct { background-color: #4ade80 !important; color: white; }
-        .incorrect { background-color: #f87171 !important; color: white; }
+        .correct { background-color: #4ade80 !important; color: white; border-color: #22c55e !important; }
+        .incorrect { background-color: #f87171 !important; color: white; border-color: #ef4444 !important; }
         
-        /* Dynamic symbol style */
         .visual-feedback-mark {
             font-weight: 800;
-            font-size: 1.5em;
+            font-size: 1.4em; /* Más grande como solicitaste */
             display: inline-block;
-            margin: 0 5px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            margin: 0 4px;
+            vertical-align: middle;
         }
         
-        /* Screen shake animation */
         .shake-screen {
             animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
@@ -70,9 +71,42 @@
             30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
             40%, 60% { transform: translate3d(4px, 0, 0); }
         }
+
+        .highlight-rule {
+            border: 3px dashed #fbbf24;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(251, 191, 36, 0.2);
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        /* Voice speed control styling */
+        #speed-control-container {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 15px;
+        }
+        input[type=range] {
+            cursor: pointer;
+            accent-color: #fbbf24;
+        }
     </style>
 </head>
 <body class="p-4 flex flex-col items-center">
+
+    <!-- Voice Speed Control -->
+    <div id="speed-control-container" class="glass flex items-center gap-3">
+        <span class="text-xl" title="Slow">🐢</span>
+        <input type="range" id="voice-speed" min="0.5" max="1.5" step="0.1" value="0.8" class="w-24 md:w-32">
+        <span class="text-xl" title="Fast">🐇</span>
+    </div>
 
     <!-- Top HUD -->
     <div id="hud" class="fixed top-4 right-4 glass px-6 py-2 hidden z-50 flex items-center gap-2">
@@ -81,7 +115,7 @@
     </div>
 
     <!-- Main Container -->
-    <main id="app-container" class="w-full max-w-2xl mt-10">
+    <main id="app-container" class="w-full max-w-2xl mt-16">
         
         <!-- SCREEN 1: WELCOME -->
         <section id="screen-welcome" class="glass p-8 text-center animate__animated animate__fadeIn">
@@ -99,7 +133,6 @@
         <!-- SCREEN 2: LEARNING -->
         <section id="screen-learning" class="hidden glass p-8 animate__animated animate__fadeIn">
             <div class="flex items-center gap-4 mb-6">
-                <!-- Robot Avatar -->
                 <div id="robot-avatar" class="w-24 h-24 bg-white rounded-full border-4 border-yellow-400 flex flex-col items-center justify-center relative overflow-hidden">
                     <div class="flex gap-2 mb-2">
                         <div class="w-3 h-3 bg-indigo-600 rounded-full"></div>
@@ -112,9 +145,7 @@
                 </div>
             </div>
 
-            <div id="learning-content" class="grid grid-cols-1 gap-4 text-white">
-                <!-- Dynamically loaded -->
-            </div>
+            <div id="learning-content" class="grid grid-cols-1 gap-4 text-white"></div>
 
             <button onclick="startQuiz()" class="mt-8 w-full bg-green-500 hover:bg-green-400 text-white font-bold-game py-4 rounded-xl text-xl shadow-lg transform active:scale-95 transition-all">
                 I'm Ready! 🎯
@@ -132,10 +163,11 @@
             
             <div id="quiz-box" class="text-white">
                 <h3 id="quiz-instruction" class="text-xl font-bold-game mb-4 text-yellow-200 uppercase"></h3>
-                <p id="quiz-question" class="text-2xl mb-6 p-4 bg-white/10 rounded-lg"></p>
-                <div id="quiz-options" class="grid grid-cols-1 gap-4">
-                    <!-- Option buttons -->
+                <div id="quiz-question" class="text-2xl mb-4 p-4 bg-white/10 rounded-lg min-h-[80px] flex flex-wrap items-center gap-1"></div>
+                <div id="explanation-box" class="hidden animate__animated animate__fadeIn mb-4 text-center">
+                    <!-- Dinamic explanation here -->
                 </div>
+                <div id="quiz-options" class="grid grid-cols-1 gap-4"></div>
             </div>
         </section>
 
@@ -145,21 +177,17 @@
             <div id="final-stats" class="text-2xl text-white mb-8">
                 Score: <span id="final-score" class="text-yellow-400">0%</span>
             </div>
-            <div id="reward-zone">
-                <!-- Diploma shown if > 80% -->
-            </div>
+            <div id="reward-zone"></div>
             <button onclick="location.reload()" class="mt-6 text-white underline">Try Again 🔄</button>
         </section>
 
     </main>
 
-    <!-- Footer -->
     <footer class="mt-auto py-6 text-white/70 font-game">
         By: Ing. Milko Gonzales C.
     </footer>
 
     <script>
-        // --- CONFIGURATION AND DATA ---
         const ENDPOINT = "https://script.google.com/macros/s/AKfycbyAq9DVA2ee7Vtge9vND5PeucQposM_rYbup_nkP4DSvBxAkYmVBDcSeM3FefSy1g9x/exec";
         
         let userName = "";
@@ -168,91 +196,56 @@
         let totalStars = 0;
 
         const quizData = [
-            // Part 1: Sentences
-            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "1.- The girl sees a fish. 👧👁️🐟", options: ["Sentence ✅", "Not a sentence ❌"], correct: 0 },
-            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "2.- claps her hands 👏👐", options: ["Sentence ✅", "Not a sentence ❌"], correct: 1 },
-            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "3.- Grandpa rows the boat. 👴🛶🚣", options: ["Sentence ✅", "Not a sentence ❌"], correct: 0 },
-            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "4.- Grandma smiles. 👵😊", options: ["Sentence ✅", "Not a sentence ❌"], correct: 0 },
-            
-            // Part 2: Action Parts
-            { instr: "CIRCLE THE ACTION PART IN EACH SENTENCE", q: "5.- Matias sings. 👦🎤🎶", options: ["Matias 👦", "sings 🎤"], correct: 1 },
-            { instr: "CIRCLE THE ACTION PART IN EACH SENTENCE", q: "6.- A child jumps. 🧒👟⬆️", options: ["A child 🧒", "jumps 👟"], correct: 1 },
-            { instr: "CIRCLE THE ACTION PART IN EACH SENTENCE", q: "7.- Two rabbits hop. 🐰🐰🤸", options: ["Two rabbits 🐰🐰", "hop 🤸"], correct: 1 },
-
-            // Part 3: Correct Telling Sentences
-            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "8.- Choose correct:", options: ["A boy reads a book. 👦📖✅", "a boy reads a book 👦📖❌"], correct: 0 },
-            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "9.- Choose correct:", options: ["she paints 👩‍🎨🎨❌", "She paints. 👩‍🎨🎨✅"], correct: 1 },
-            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "10.- Choose correct:", options: ["This duck quacks. 🦆📣✅", "this duck quacks 🦆📣❌"], correct: 0 },
-            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "11.- Choose correct:", options: ["A snake hides. 🐍🙈✅", "a snake hides 🐍🙈❌"], correct: 0 },
-
-            // Part 4: End Marks
-            { instr: "CHOOSE THE CORRECT END MARK", q: "12.- When is lunch ____ 🍴🍱", options: ["? ❓", ". 🛑"], correct: 0 },
-            { instr: "CHOOSE THE CORRECT END MARK", q: "13.- Mom made soup ____ 👩‍🍳🥣", options: ["? ❓", ". 🛑"], correct: 1 },
-            { instr: "CHOOSE THE CORRECT END MARK", q: "14.- Soup is good for you ____ 🥣💪", options: ["? ❓", ". 🛑"], correct: 1 },
-            { instr: "CHOOSE THE CORRECT END MARK", q: "15.- What is in the soup ____ 🥣❓", options: ["? ❓", ". 🛑"], correct: 0 },
-            { instr: "CHOOSE THE CORRECT END MARK", q: "16.- We like the soup ____ 😋🥣", options: ["? ❓", ". 🛑"], correct: 1 },
-
-            // Part 5: Beginning word & mark
-            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "17.- ____ book do you like ____ 📖💖", options: ["What / ? 💡❓", "what / . 💡🛑"], correct: 0 },
-            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "18.- ____ is your best friend ____ 👦🤝👧", options: ["who / . 👥🛑", "Who / ? 👥❓"], correct: 1 },
-            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "19.- ____ you swim ____ 🏊‍♂️💦", options: ["Can / ? 🏊❓", "can / . 🏊🛑"], correct: 0 },
-            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "20.- ____ does it sleep ____ 😴🛌", options: ["When / ? ⏰❓", "when / . ⏰🛑"], correct: 0 },
-
-            // Part 6: Matching
-            { instr: "MATCH NAMING AND ACTION PARTS", q: "21.- The wind ____ 💨🍃", options: ["run fast 🏃💨", "fly in the sky ☁️🪁", "blows 🌬️🍃"], correct: 2 },
-            { instr: "MATCH NAMING AND ACTION PARTS", q: "22.- Two boys ____ 👦👦", options: ["run fast 🏃💨", "fly in the sky ☁️🪁", "blows 🌬️🍃"], correct: 0 },
-            { instr: "MATCH NAMING AND ACTION PARTS", q: "23.- Kites ____ 🪁🪁", options: ["run fast 🏃💨", "fly in the sky ☁️🪁", "blows 🌬️🍃"], correct: 1 }
+            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "1.- The girl sees a fish. 👧👁️🐟", options: ["Sentence ✅", "Not a sentence ❌"], correct: 0, explain: "Remember! A sentence is a complete thought. This one has a person and what she does." },
+            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "2.- claps her hands 👏👐", options: ["Sentence ✅", "Not a sentence ❌"], correct: 1, explain: "Wait! This is NOT a sentence. Who is clapping? It's missing a person." },
+            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "3.- Grandpa rows the boat. 👴🛶🚣", options: ["Sentence ✅", "Not a sentence ❌"], correct: 0, explain: "Yes! Grandpa is the person and rowing is the action. It's a full thought!" },
+            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "4.- Grandma smiles. 👵😊", options: ["Sentence ✅", "Not a sentence ❌"], correct: 0, explain: "Even short ones like 'Grandma smiles' are sentences! We know who and what she does." },
+            { instr: "CIRCLE THE ACTION PART IN EACH SENTENCE", q: "5.- Matias sings. 👦🎤🎶", options: ["Matias 👦", "sings 🎤"], correct: 1, explain: "Matias is the name. Sings is the ACTION! What is he doing? He is singing!" },
+            { instr: "CIRCLE THE ACTION PART IN EACH SENTENCE", q: "6.- A child jumps. 🧒👟⬆️", options: ["A child 🧒", "jumps 👟"], correct: 1, explain: "Jumps is the ACTION part! It's the movement." },
+            { instr: "CIRCLE THE ACTION PART IN EACH SENTENCE", q: "7.- Two rabbits hop. 🐰🐰🤸", options: ["Two rabbits 🐰🐰", "hop 🤸"], correct: 1, explain: "Hop is the ACTION part! What do rabbits do? They hop!" },
+            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "8.- Choose correct:", options: ["A boy reads a book. 👦📖✅", "a boy reads a book 👦📖❌"], correct: 0, explain: "Look closely! A sentence needs a BIG Capital Letter at the start and a dot (.) Period at the end." },
+            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "9.- Choose correct:", options: ["she paints 👩‍🎨🎨❌", "She paints. 👩‍🎨🎨✅"], correct: 1, explain: "Always start with BIG 'S' and end with a Period (.)." },
+            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "10.- Choose correct:", options: ["This duck quacks. 🦆📣✅", "this duck quacks 🦆📣❌"], correct: 0, explain: "Capital letter at the start and Period at the end makes it perfect!" },
+            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "11.- Choose correct:", options: ["A snake hides. 🐍🙈✅", "a snake hides 🐍🙈❌"], correct: 0, explain: "Don't forget: Start BIG, end with a Period (.)." },
+            { instr: "CHOOSE THE CORRECT END MARK", q: "12.- When is lunch ____ 🍴🍱", options: ["? ❓", ". 🛑"], correct: 0, explain: "This is a question! We use the Hook (?) to ask things." },
+            { instr: "CHOOSE THE CORRECT END MARK", q: "13.- Mom made soup ____ 👩‍🍳🥣", options: ["? ❓", ". 🛑"], correct: 1, explain: "This is just telling something. We use a Period (.) to stop." },
+            { instr: "CHOOSE THE CORRECT END MARK", q: "14.- Soup is good for you ____ 🥣💪", options: ["? ❓", ". 🛑"], correct: 1, explain: "A telling sentence ends with a Period (.)." },
+            { instr: "CHOOSE THE CORRECT END MARK", q: "15.- What is in the soup ____ 🥣❓", options: ["? ❓", ". 🛑"], correct: 0, explain: "What, When, Who... these words start Questions (?)!" },
+            { instr: "CHOOSE THE CORRECT END MARK", q: "16.- We like the soup ____ 😋🥣", options: ["? ❓", ". 🛑"], correct: 1, explain: "End with a Period (.) when you are just telling." },
+            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "17.- ____ book do you like ____ 📖💖", options: ["What / ? 💡❓", "what / . 💡🛑"], correct: 0, explain: "Start with a Capital Letter and end with a Question Mark because it's a question!" },
+            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "18.- ____ is your best friend ____ 👦🤝👧", options: ["who / . 👥🛑", "Who / ? 👥❓"], correct: 1, explain: "Who is for people! And use the Question mark (?) at the end." },
+            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "19.- ____ you swim ____ 🏊‍♂️💦", options: ["Can / ? 🏊❓", "can / . 🏊🛑"], correct: 0, explain: "Can you? That's a question! Use BIG 'C' and Question mark (?)." },
+            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "20.- ____ does it sleep ____ 😴🛌", options: ["When / ? ⏰❓", "when / . ⏰🛑"], correct: 0, explain: "When is for time! Start BIG and end with (?) mark." },
+            { instr: "MATCH NAMING AND ACTION PARTS", q: "21.- The wind ____ 💨🍃", options: ["run fast 🏃💨", "fly in the sky ☁️🪁", "blows 🌬️🍃"], correct: 2, explain: "The wind doesn't run with legs. The wind BLOWS! 🌬️" },
+            { instr: "MATCH NAMING AND ACTION PARTS", q: "22.- Two boys ____ 👦👦", options: ["run fast 🏃💨", "fly in the sky ☁️🪁", "blows 🌬️🍃"], correct: 0, explain: "Boys have legs, they can RUN fast! 🏃" },
+            { instr: "MATCH NAMING AND ACTION PARTS", q: "23.- Kites ____ 🪁🪁", options: ["run fast 🏃💨", "fly in the sky ☁️🪁", "blows 🌬️🍃"], correct: 1, explain: "Kites fly up high in the sky! 🪁☁️" }
         ];
 
-        // NEW PEDAGOGICAL CONTENT
         const learningResources = [
-            {
-                title: "COMPLETE THOUGHT 💡",
-                text: "A sentence is like a full story. 💡 Example: Grandpa rows the boat. 👴🛶",
-                voice: "One. A sentence is a complete thought. It tells a full story. Like Grandpa rows the boat."
-            },
-            {
-                title: "ACTION PART 🏃",
-                text: "Action is what we DO! 🏃 Like jump 👟 or sing 🎤. That is the action part!",
-                voice: "Two. The action part tells what we do. Like jump or sing."
-            },
-            {
-                title: "TELLING SENTENCES 📝",
-                text: "Always start with BIG letter (A) and end with a DOT (.) 🛑 Example: She paints. 👩‍🎨",
-                voice: "Three. Telling sentences start with a capital letter and end with a little dot called a period."
-            },
-            {
-                title: "QUESTIONS ❓",
-                text: "When we ask something, we use the Hook Mark! (?) ❓ Like: When is lunch? 🍴",
-                voice: "Four. When we ask a question, we use a question mark at the end. Like a little hook."
-            }
+            { title: "COMPLETE THOUGHT 💡", text: "A sentence is like a full story. 💡 Example: Grandpa rows the boat. 👴🛶", voice: "One. A sentence is a complete thought. It tells a full story. Like Grandpa rows the boat." },
+            { title: "ACTION PART 🏃", text: "Action is what we DO! 🏃 Like jump 👟 or sing 🎤. That is the action part!", voice: "Two. The action part tells what we do. Like jump or sing." },
+            { title: "TELLING SENTENCES 📝", text: "Always start with BIG letter (A) and end with a DOT (.) 🛑 Example: She paints. 👩‍🎨", voice: "Three. Telling sentences start with a capital letter and end with a little dot called a period." },
+            { title: "QUESTIONS ❓", text: "When we ask something, we use the Hook Mark! (?) ❓ Like: When is lunch? 🍴", voice: "Four. When we ask a question, we use a question mark at the end. Like a little hook." }
         ];
 
-        // --- SPEECH LOGIC (TTS) ---
         function speak(text, onEndCallback = null) {
             const synth = window.speechSynthesis;
             synth.cancel();
-            
             const utter = new SpeechSynthesisUtterance(text);
             utter.lang = 'en-US';
-            utter.rate = 0.85; // Slightly slower for 6-year-olds
-            
+            const speed = document.getElementById('voice-speed').value;
+            utter.rate = parseFloat(speed);
             utter.onstart = () => document.getElementById('robot-avatar').classList.add('talking');
             utter.onend = () => {
                 document.getElementById('robot-avatar').classList.remove('talking');
                 if (onEndCallback) onEndCallback();
             };
-            
             synth.speak(utter);
         }
 
-        // --- APP FLOW ---
         function startApp() {
             userName = document.getElementById('student-name').value.trim();
-            if (!userName) {
-                alert("Please, type your name first!");
-                return;
-            }
+            if (!userName) return;
             showScreen('screen-learning');
             document.getElementById('hud').classList.remove('hidden');
             loadLearning();
@@ -279,7 +272,7 @@
                 div.onclick = () => speak(res.voice);
                 container.appendChild(div);
             });
-            speak("Hello " + userName + "! Welcome to Footprints. Look at these four rules. Click each one to listen to me!");
+            speak("Hello " + userName + "! Welcome to Footprints. Click each rule to listen!");
         }
 
         function startQuiz() {
@@ -295,14 +288,32 @@
             document.getElementById('progress-bar').style.width = `${((currentQuestion) / quizData.length) * 100}%`;
             document.getElementById('quiz-instruction').innerText = q.instr;
             
-            document.getElementById('quiz-question').innerText = q.q;
+            const questionEl = document.getElementById('quiz-question');
+            questionEl.innerHTML = "";
             
+            // Format question text with slots for ____
+            if (q.q.includes('____')) {
+                const parts = q.q.split('____');
+                parts.forEach((part, i) => {
+                    questionEl.innerHTML += `<span>${part}</span>`;
+                    if (i < parts.length - 1) {
+                        const slot = document.createElement('span');
+                        slot.className = "border-b-4 border-yellow-400 min-w-[60px] text-center inline-block mx-1 h-8 bg-white/5 rounded-t-lg";
+                        slot.id = `slot-${i}`;
+                        questionEl.appendChild(slot);
+                    }
+                });
+            } else {
+                questionEl.innerText = q.q;
+            }
+
+            document.getElementById('explanation-box').classList.add('hidden');
             const optionsContainer = document.getElementById('quiz-options');
             optionsContainer.innerHTML = "";
             
             q.options.forEach((opt, idx) => {
                 const btn = document.createElement('button');
-                btn.className = "option-btn glass p-4 text-xl font-game rounded-xl text-left border-2 border-transparent hover:border-white/50";
+                btn.className = "option-btn glass p-4 text-xl font-game rounded-xl text-left border-2 border-transparent";
                 btn.innerText = opt;
                 btn.onclick = () => checkAnswer(idx, btn);
                 optionsContainer.appendChild(btn);
@@ -315,149 +326,163 @@
         function checkAnswer(idx, btn) {
             const q = quizData[currentQuestion];
             const buttons = document.querySelectorAll('.option-btn');
-            const questionEl = document.getElementById('quiz-question');
+            const explanationEl = document.getElementById('explanation-box');
             const selectedText = q.options[idx];
             
             buttons.forEach(b => b.disabled = true);
 
+            // REPLACEMENT LOGIC FOR SLOTS
             if (q.q.includes('____')) {
-                const parts = q.q.split('____');
-                let newHtml = "";
-                const colorClass = (idx === q.correct) ? 'text-green-400' : 'text-red-500';
-                
                 const cleanText = selectedText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF])/g, '').split(' / ');
-
-                if (parts.length > 2) {
-                    newHtml = `<span class="visual-feedback-mark ${colorClass}">${cleanText[0]}</span> ${parts[1]} <span class="visual-feedback-mark ${colorClass}">${cleanText[1] || ''}</span> ${parts[2] || ''}`;
-                } else {
-                    newHtml = `${parts[0]} <span class="visual-feedback-mark ${colorClass}">${cleanText[0]}</span> ${parts[1] || ''}`;
-                }
-                questionEl.innerHTML = newHtml;
+                const colorClass = (idx === q.correct) ? 'bg-green-500 text-white' : 'bg-red-500 text-white';
+                
+                // Fill all available slots in the current question
+                const slots = document.querySelectorAll('[id^="slot-"]');
+                slots.forEach((slot, sIdx) => {
+                    const textToPut = cleanText[sIdx] || cleanText[0];
+                    slot.innerHTML = `<span class="visual-feedback-mark ${colorClass} animate__animated animate__bounceIn">${textToPut}</span>`;
+                    slot.className = "inline-block border-none mx-1"; // Remove underline once filled
+                });
             }
 
-            const nextStep = () => {
-                currentQuestion++;
-                if (currentQuestion < quizData.length) {
-                    loadQuestion();
-                } else {
-                    finishQuiz();
-                }
-            };
+            if (idx !== q.correct) {
+                btn.classList.add('incorrect', 'animate__animated', 'animate__shakeX');
+                buttons[q.correct].classList.add('correct');
+                document.body.classList.add('shake-screen');
+                setTimeout(() => document.body.classList.remove('shake-screen'), 500);
 
-            if (idx === q.correct) {
+                explanationEl.innerHTML = `
+                    <div class="highlight-rule animate__animated animate__zoomIn">
+                        <p class="text-yellow-300 font-bold-game text-lg mb-1">Look! 💡</p>
+                        <p class="text-white font-game">${q.explain}</p>
+                    </div>
+                `;
+                explanationEl.classList.remove('hidden');
+
+                if (q.instr.includes("TELLING SENTENCE") || q.instr.includes("SENTENCE")) {
+                    const text = q.options[idx];
+                    if (text.charAt(0) === text.charAt(0).toLowerCase()) {
+                        explanationEl.innerHTML += `<p class="mt-2 text-red-300 font-bold-game underline">❌ Missing CAPITAL Letter!</p>`;
+                    }
+                    if (!text.includes('.') && !text.includes('?')) {
+                        explanationEl.innerHTML += `<p class="mt-2 text-red-300 font-bold-game underline">❌ Missing PERIOD (.) at the end!</p>`;
+                    }
+                }
+            } else {
                 btn.classList.add('correct', 'animate__animated', 'animate__pulse');
                 points++;
                 totalStars += 10;
                 document.getElementById('score-display').innerText = totalStars;
-                
                 confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
-                
-                const cleanSelected = selectedText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF])/g, '').replace(' / ', ' ');
-                const fullSentence = q.q.replace(/____/g, () => cleanSelected).replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF])/g, '');
-                speak("Great job! " + fullSentence, nextStep);
-            } else {
-                btn.classList.add('incorrect', 'animate__animated', 'animate__shakeX');
-                buttons[q.correct].classList.add('correct');
-                
-                document.body.classList.add('shake-screen');
-                setTimeout(() => document.body.classList.remove('shake-screen'), 500);
-                
-                speak("Oh! Let's remember the rule for next time.", nextStep);
             }
+
+            const nextStep = () => {
+                currentQuestion++;
+                if (currentQuestion < quizData.length) { loadQuestion(); } else { finishQuiz(); }
+            };
+
+            const feedbackVoice = (idx === q.correct) ? "Great job! " : "Oops! " + q.explain;
+            speak(feedbackVoice, () => {
+                setTimeout(nextStep, idx === q.correct ? 800 : 4000);
+            });
         }
 
         function finishQuiz() {
             const percentage = Math.round((points / quizData.length) * 100);
             showScreen('screen-results');
             document.getElementById('final-score').innerText = percentage + "%";
-            
             saveToSheets(percentage);
-
             if (percentage >= 80) {
                 document.getElementById('reward-zone').innerHTML = `
                     <div class="mb-4 text-yellow-300 text-6xl animate__animated animate__tada animate__infinite">🏆</div>
-                    <p class="text-white text-xl mb-6">WOW! You are a superstar! You won the Gold Diploma! 🎖️</p>
-                    <button onclick="generateDiploma(${percentage})" class="bg-yellow-400 text-indigo-900 font-bold-game py-3 px-8 rounded-full text-lg shadow-xl hover:scale-105 transition-transform">
-                        Get my Gold Diploma! 📄
-                    </button>
+                    <p class="text-white text-xl mb-6">WOW! Superstar! You won the Gold Diploma! 🎖️</p>
+                    <button onclick="generateDiploma(${percentage})" class="bg-yellow-400 text-indigo-900 font-bold-game py-3 px-8 rounded-full text-lg shadow-xl hover:scale-105 transition-transform">Get my Diploma! 📄</button>
                 `;
                 confetti({ particleCount: 200, spread: 160 });
             } else {
-                document.getElementById('reward-zone').innerHTML = `
-                    <p class="text-white text-xl">Good try! Keep practicing to get the Gold Diploma. You can do it! 💪</p>
-                `;
+                document.getElementById('reward-zone').innerHTML = `<p class="text-white text-xl">Good try! Practice more for the Gold Diploma! 💪</p>`;
             }
         }
 
-        // --- SAVE TO GOOGLE SHEETS ---
         async function saveToSheets(percentage) {
-            const data = {
-                name: userName,
-                grade: "1st Grade",
-                testResult: percentage + "%",
-                date: new Date().toLocaleString()
-            };
-
-            try {
-                await fetch(ENDPOINT, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-            } catch (e) {
-                console.error("Error saving data", e);
-            }
+            const data = { name: userName, grade: "1st Sentences", testResult: percentage + "%", date: new Date().toLocaleString() };
+            try { await fetch(ENDPOINT, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch (e) {}
         }
 
-        // --- DIPLOMA GENERATION ---
         function generateDiploma(percentage) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape' });
             const w = doc.internal.pageSize.getWidth();
             const h = doc.internal.pageSize.getHeight();
-
-            doc.setFillColor(240, 240, 240);
+            
+            // Fondo crema suave
+            doc.setFillColor(255, 253, 240); 
             doc.rect(0, 0, w, h, 'F');
             
-            doc.setDrawColor(70, 80, 180);
+            // Bordes elegantes
+            doc.setDrawColor(218, 165, 32); // Dorado
             doc.setLineWidth(2);
             doc.rect(10, 10, w-20, h-20);
             doc.setLineWidth(1);
-            doc.rect(12, 12, w-24, h-24);
+            doc.rect(13, 13, w-26, h-26);
 
+            // Estrellas decorativas en las esquinas
+            const drawStar = (x, y, size) => {
+                doc.setFontSize(size);
+                doc.text("⭐", x, y);
+            };
+            drawStar(20, 30, 30);
+            drawStar(w-35, 30, 30);
+            drawStar(20, h-20, 30);
+            drawStar(w-35, h-20, 30);
+
+            // Título principal
             doc.setTextColor(70, 80, 180);
+            doc.setFont("helvetica", "bold");
             doc.setFontSize(50);
-            doc.text("GOLD DIPLOMA", w/2, 50, { align: 'center' });
+            doc.text("DIPLOMA OF EXCELLENCE", w/2, 50, { align: 'center' });
             
+            // Subtítulo
             doc.setFontSize(20);
-            doc.text("Academic Excellence - FOOTPRINTS", w/2, 65, { align: 'center' });
+            doc.setTextColor(100, 100, 100);
+            doc.text("THIS IS PROUDLY PRESENTED TO", w/2, 75, { align: 'center' });
 
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(16);
-            doc.text("Proudly awarded to:", w/2, 90, { align: 'center' });
-            
-            doc.setFontSize(35);
-            doc.setTextColor(218, 165, 32); 
-            doc.text(userName.toUpperCase(), w/2, 110, { align: 'center' });
+            // Nombre del estudiante
+            doc.setFontSize(45);
+            doc.setTextColor(218, 165, 32);
+            doc.text(userName.toUpperCase(), w/2, 105, { align: 'center' });
 
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(14);
-            doc.text(`For successfully completing the English First Quarter Exam`, w/2, 130, { align: 'center' });
-            doc.text(`with an outstanding score of ${percentage}%`, w/2, 140, { align: 'center' });
-
+            // Línea decorativa bajo el nombre
             doc.setDrawColor(218, 165, 32);
             doc.setLineWidth(1);
-            doc.circle(w - 50, h - 50, 20);
-            doc.circle(w - 50, h - 50, 18);
-            doc.setFontSize(8);
-            doc.text("EXCELLENCE", w - 50, h - 52, { align: 'center' });
-            doc.text("CERTIFIED", w - 50, h - 48, { align: 'center' });
+            doc.line(w/2 - 70, 110, w/2 + 70, 110);
 
+            // Mensaje de logro
+            doc.setFontSize(18);
+            doc.setTextColor(60, 60, 60);
+            doc.setFont("helvetica", "normal");
+            doc.text("For successfully completing the Footprints Sentences Unit", w/2, 130, { align: 'center' });
+            doc.text("with an outstanding performance.", w/2, 140, { align: 'center' });
+
+            // Puntaje en un círculo (Medalla)
+            doc.setFillColor(218, 165, 32);
+            doc.circle(w/2, 165, 18, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text(`${percentage}%`, w/2, 163, { align: 'center' });
             doc.setFontSize(10);
-            doc.text(`Date: ${new Date().toLocaleDateString()}`, 30, h - 30);
-            doc.line(w - 90, h - 30, w - 30, h - 30);
-            doc.text("Ing. Milko Gonzales C.", w - 60, h - 25, { align: 'center' });
+            doc.text("SCORE", w/2, 172, { align: 'center' });
+
+            // Fecha y Firma
+            const date = new Date().toLocaleDateString();
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(12);
+            doc.text(`Date: ${date}`, 40, 185);
+            
+            doc.setDrawColor(100, 100, 100);
+            doc.line(w-90, 182, w-40, 182);
+            doc.text("Signature", w-65, 188, { align: 'center' });
 
             doc.save(`Diploma_Footprints_${userName}.pdf`);
         }
