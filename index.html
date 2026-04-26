@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FOOTPRINTS - First Grade</title>
+    <!-- Fonts and Styles -->
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+        }
+        .font-game { font-weight: 500; }
+        .font-bold-game { font-weight: 700; }
+        
+        .robot-mouth {
+            width: 40px;
+            height: 10px;
+            background: #333;
+            border-radius: 5px;
+            transition: height 0.1s;
+        }
+        .talking .robot-mouth {
+            animation: mouthMove 0.2s infinite;
+        }
+        @keyframes mouthMove {
+            0%, 100% { height: 10px; }
+            50% { height: 20px; }
+        }
+        .option-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .option-btn:hover {
+            transform: scale(1.02);
+            background: rgba(255, 255, 255, 0.4);
+        }
+        .correct { background-color: #4ade80 !important; color: white; }
+        .incorrect { background-color: #f87171 !important; color: white; }
+        
+        /* Dynamic symbol style */
+        .visual-feedback-mark {
+            font-weight: 800;
+            font-size: 1.5em;
+            display: inline-block;
+            margin: 0 5px;
+        }
+        
+        /* Screen shake animation */
+        .shake-screen {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center">
+
+    <!-- Top HUD -->
+    <div id="hud" class="fixed top-4 right-4 glass px-6 py-2 hidden z-50 flex items-center gap-2">
+        <span class="text-yellow-400 text-2xl">⭐</span>
+        <span id="score-display" class="text-white font-bold-game text-xl">0</span>
+    </div>
+
+    <!-- Main Container -->
+    <main id="app-container" class="w-full max-w-2xl mt-10">
+        
+        <!-- SCREEN 1: WELCOME -->
+        <section id="screen-welcome" class="glass p-8 text-center animate__animated animate__fadeIn">
+            <h1 class="text-5xl font-bold-game text-yellow-400 mb-2 tracking-wider">FOOTPRINTS</h1>
+            <h2 class="text-2xl text-white mb-8">First Grade</h2>
+            <div class="mb-6">
+                <input type="text" id="student-name" placeholder="Type your name here..." 
+                    class="w-full p-4 rounded-xl border-none focus:ring-4 focus:ring-yellow-400 outline-none text-xl text-center">
+            </div>
+            <button onclick="startApp()" class="bg-yellow-400 hover:bg-yellow-300 text-indigo-900 font-bold-game py-4 px-10 rounded-full text-2xl shadow-lg transition-transform hover:scale-105">
+                START! 🚀
+            </button>
+        </section>
+
+        <!-- SCREEN 2: LEARNING -->
+        <section id="screen-learning" class="hidden glass p-8 animate__animated animate__fadeIn">
+            <div class="flex items-center gap-4 mb-6">
+                <!-- Robot Avatar -->
+                <div id="robot-avatar" class="w-24 h-24 bg-white rounded-full border-4 border-yellow-400 flex flex-col items-center justify-center relative overflow-hidden">
+                    <div class="flex gap-2 mb-2">
+                        <div class="w-3 h-3 bg-indigo-600 rounded-full"></div>
+                        <div class="w-3 h-3 bg-indigo-600 rounded-full"></div>
+                    </div>
+                    <div class="robot-mouth"></div>
+                </div>
+                <div class="glass p-4 text-white">
+                    <p id="robot-text" class="text-lg italic font-game">Hello! Let's review before the exam. 📚</p>
+                </div>
+            </div>
+
+            <div id="learning-content" class="space-y-4 text-white">
+                <!-- Dynamically loaded -->
+            </div>
+
+            <button onclick="startQuiz()" class="mt-8 w-full bg-green-500 hover:bg-green-400 text-white font-bold-game py-4 rounded-xl text-xl">
+                Ready for the Quiz? 🎯
+            </button>
+        </section>
+
+        <!-- SCREEN 3: QUIZ -->
+        <section id="screen-quiz" class="hidden glass p-8 animate__animated animate__fadeIn">
+            <div class="mb-4 flex justify-between items-center text-white">
+                <span id="question-number" class="font-bold-game">Question 1/23</span>
+                <div class="w-1/2 bg-white/20 h-3 rounded-full overflow-hidden">
+                    <div id="progress-bar" class="bg-yellow-400 h-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div id="quiz-box" class="text-white">
+                <h3 id="quiz-instruction" class="text-xl font-bold-game mb-4 text-yellow-200 uppercase"></h3>
+                <p id="quiz-question" class="text-2xl mb-6 p-4 bg-white/10 rounded-lg"></p>
+                <div id="quiz-options" class="grid grid-cols-1 gap-4">
+                    <!-- Option buttons -->
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 4: RESULTS -->
+        <section id="screen-results" class="hidden glass p-8 text-center animate__animated animate__bounceIn">
+            <h2 class="text-4xl font-bold-game text-white mb-4">YOU FINISHED! 🌈</h2>
+            <div id="final-stats" class="text-2xl text-white mb-8">
+                Score: <span id="final-score" class="text-yellow-400">0%</span>
+            </div>
+            <div id="reward-zone">
+                <!-- Diploma shown if > 80% -->
+            </div>
+            <button onclick="location.reload()" class="mt-6 text-white underline">Try Again 🔄</button>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto py-6 text-white/70 font-game">
+        By: Ing. Milko Gonzales C.
+    </footer>
+
+    <script>
+        // --- CONFIGURATION AND DATA ---
+        const ENDPOINT = "https://script.google.com/macros/s/AKfycbyAq9DVA2ee7Vtge9vND5PeucQposM_rYbup_nkP4DSvBxAkYmVBDcSeM3FefSy1g9x/exec";
+        
+        let userName = "";
+        let currentQuestion = 0;
+        let points = 0;
+        let totalStars = 0;
+
+        const quizData = [
+            // Part 1: Sentences
+            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "1.- The girl sees a fish. 👧👁️🐟", options: ["Sentence ✅", "Not a sentence ❌"], correct: 0 },
+            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "2.- claps her hands 👏👐", options: ["Sentence ✅", "Not a sentence ❌"], correct: 1 },
+            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "3.- Grandpa rows the boat. 👴🛶🚣", options: ["Sentence ✅", "Not a sentence ❌"], correct: 0 },
+            { instr: "CIRCLE THE WORD GROUP THAT IS A SENTENCE.", q: "4.- Grandma smiles. 👵😊", options: ["Sentence ✅", "Not a sentence ❌"], correct: 0 },
+            
+            // Part 2: Action Parts
+            { instr: "CIRCLE THE ACTION PART IN EACH SENTENCE", q: "5.- Matias sings. 👦🎤🎶", options: ["Matias 👦", "sings 🎤"], correct: 1 },
+            { instr: "CIRCLE THE ACTION PART IN EACH SENTENCE", q: "6.- A child jumps. 🧒👟⬆️", options: ["A child 🧒", "jumps 👟"], correct: 1 },
+            { instr: "CIRCLE THE ACTION PART IN EACH SENTENCE", q: "7.- Two rabbits hop. 🐰🐰🤸", options: ["Two rabbits 🐰🐰", "hop 🤸"], correct: 1 },
+
+            // Part 3: Correct Telling Sentences
+            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "8.- Choose correct:", options: ["A boy reads a book. 👦📖✅", "a boy reads a book 👦📖❌"], correct: 0 },
+            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "9.- Choose correct:", options: ["she paints 👩‍🎨🎨❌", "She paints. 👩‍🎨🎨✅"], correct: 1 },
+            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "10.- Choose correct:", options: ["This duck quacks. 🦆📣✅", "this duck quacks 🦆📣❌"], correct: 0 },
+            { instr: "CIRCLE THE CORRECT TELLING SENTENCE", q: "11.- Choose correct:", options: ["A snake hides. 🐍🙈✅", "a snake hides 🐍🙈❌"], correct: 0 },
+
+            // Part 4: End Marks
+            { instr: "CHOOSE THE CORRECT END MARK", q: "12.- When is lunch ____ 🍴🍱", options: ["? ❓", ". 🛑"], correct: 0 },
+            { instr: "CHOOSE THE CORRECT END MARK", q: "13.- Mom made soup ____ 👩‍🍳🥣", options: ["? ❓", ". 🛑"], correct: 1 },
+            { instr: "CHOOSE THE CORRECT END MARK", q: "14.- Soup is good for you ____ 🥣💪", options: ["? ❓", ". 🛑"], correct: 1 },
+            { instr: "CHOOSE THE CORRECT END MARK", q: "15.- What is in the soup ____ 🥣❓", options: ["? ❓", ". 🛑"], correct: 0 },
+            { instr: "CHOOSE THE CORRECT END MARK", q: "16.- We like the soup ____ 😋🥣", options: ["? ❓", ". 🛑"], correct: 1 },
+
+            // Part 5: Beginning word & mark
+            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "17.- ____ book do you like ____ 📖💖", options: ["What / ? 💡❓", "what / . 💡🛑"], correct: 0 },
+            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "18.- ____ is your best friend ____ 👦🤝👧", options: ["who / . 👥🛑", "Who / ? 👥❓"], correct: 1 },
+            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "19.- ____ you swim ____ 🏊‍♂️💦", options: ["Can / ? 🏊❓", "can / . 🏊🛑"], correct: 0 },
+            { instr: "CHOOSE THE CORRECT WORD AND MARK", q: "20.- ____ does it sleep ____ 😴🛌", options: ["When / ? ⏰❓", "when / . ⏰🛑"], correct: 0 },
+
+            // Part 6: Matching
+            { instr: "MATCH NAMING AND ACTION PARTS", q: "21.- The wind ____ 💨🍃", options: ["run fast 🏃💨", "fly in the sky ☁️🪁", "blows 🌬️🍃"], correct: 2 },
+            { instr: "MATCH NAMING AND ACTION PARTS", q: "22.- Two boys ____ 👦👦", options: ["run fast 🏃💨", "fly in the sky ☁️🪁", "blows 🌬️🍃"], correct: 0 },
+            { instr: "MATCH NAMING AND ACTION PARTS", q: "23.- Kites ____ 🪁🪁", options: ["run fast 🏃💨", "fly in the sky ☁️🪁", "blows 🌬️🍃"], correct: 1 }
+        ];
+
+        const learningResources = [
+            "A sentence tells a complete thought. 💡 Example: Grandpa rows the boat. 🛶",
+            "An action part tells what someone or something does. 🏃 Example: 'jumps', 'sings'.",
+            "A telling sentence begins with a capital letter and ends with a period. (.) 📝",
+            "A question asks something and ends with a question mark. (?) ❓"
+        ];
+
+        // --- SPEECH LOGIC (TTS) ---
+        function speak(text, onEndCallback = null) {
+            const synth = window.speechSynthesis;
+            // Cancel previous speech to avoid overlapping
+            synth.cancel();
+            
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'en-US';
+            utter.rate = 0.9;
+            
+            utter.onstart = () => document.getElementById('robot-avatar').classList.add('talking');
+            utter.onend = () => {
+                document.getElementById('robot-avatar').classList.remove('talking');
+                if (onEndCallback) onEndCallback();
+            };
+            
+            synth.speak(utter);
+        }
+
+        // --- APP FLOW ---
+        function startApp() {
+            userName = document.getElementById('student-name').value.trim();
+            if (!userName) {
+                alert("Please, type your name first!");
+                return;
+            }
+            showScreen('screen-learning');
+            document.getElementById('hud').classList.remove('hidden');
+            loadLearning();
+        }
+
+        function showScreen(id) {
+            ['screen-welcome', 'screen-learning', 'screen-quiz', 'screen-results'].forEach(s => {
+                document.getElementById(s).classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function loadLearning() {
+            const container = document.getElementById('learning-content');
+            container.innerHTML = "";
+            learningResources.forEach((res, i) => {
+                const div = document.createElement('div');
+                div.className = "bg-white/10 p-3 rounded-lg cursor-pointer hover:bg-white/20 transition-all";
+                div.innerHTML = `<p>📖 ${res}</p>`;
+                div.onclick = () => speak(res);
+                container.appendChild(div);
+            });
+            speak("Welcome " + userName + ". Let's review the exam resources. Click each box to listen.");
+        }
+
+        function startQuiz() {
+            currentQuestion = 0;
+            points = 0;
+            showScreen('screen-quiz');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            const q = quizData[currentQuestion];
+            document.getElementById('question-number').innerText = `Question ${currentQuestion + 1}/${quizData.length}`;
+            document.getElementById('progress-bar').style.width = `${((currentQuestion) / quizData.length) * 100}%`;
+            document.getElementById('quiz-instruction').innerText = q.instr;
+            
+            document.getElementById('quiz-question').innerText = q.q;
+            
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = "";
+            
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "option-btn glass p-4 text-xl font-game rounded-xl text-left";
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(idx, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            // Strip underscores and emojis for clean speech intro
+            const cleanQuestion = q.q.replace(/____/g, '').replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF])/g, '');
+            speak(q.instr + ". " + cleanQuestion);
+        }
+
+        function checkAnswer(idx, btn) {
+            const q = quizData[currentQuestion];
+            const buttons = document.querySelectorAll('.option-btn');
+            const questionEl = document.getElementById('quiz-question');
+            const selectedText = q.options[idx];
+            
+            buttons.forEach(b => b.disabled = true);
+
+            // Visual feedback on the question text
+            if (q.q.includes('____')) {
+                const parts = q.q.split('____');
+                let newHtml = "";
+                const colorClass = (idx === q.correct) ? 'text-green-400' : 'text-red-500';
+                
+                // Limpiar emojis de la respuesta seleccionada para que se vea limpio en el texto
+                const cleanText = selectedText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF])/g, '').split(' / ');
+
+                if (parts.length > 2) {
+                    newHtml = `<span class="visual-feedback-mark ${colorClass}">${cleanText[0]}</span> ${parts[1]} <span class="visual-feedback-mark ${colorClass}">${cleanText[1] || ''}</span> ${parts[2] || ''}`;
+                } else {
+                    newHtml = `${parts[0]} <span class="visual-feedback-mark ${colorClass}">${cleanText[0]}</span> ${parts[1] || ''}`;
+                }
+                questionEl.innerHTML = newHtml;
+            }
+
+            const nextStep = () => {
+                currentQuestion++;
+                if (currentQuestion < quizData.length) {
+                    loadQuestion();
+                } else {
+                    finishQuiz();
+                }
+            };
+
+            if (idx === q.correct) {
+                btn.classList.add('correct', 'animate__animated', 'animate__pulse');
+                points++;
+                totalStars += 10;
+                document.getElementById('score-display').innerText = totalStars;
+                
+                confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+                
+                // Read full sentence with correct answer and move forward after audio finishes
+                const cleanSelected = selectedText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF])/g, '').replace(' / ', ' ');
+                const fullSentence = q.q.replace(/____/g, () => cleanSelected).replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF])/g, '');
+                speak("Correct! " + fullSentence, nextStep);
+            } else {
+                btn.classList.add('incorrect', 'animate__animated', 'animate__shakeX');
+                buttons[q.correct].classList.add('correct');
+                
+                document.body.classList.add('shake-screen');
+                setTimeout(() => document.body.classList.remove('shake-screen'), 500);
+                
+                // Read feedback and move forward after audio finishes
+                speak("Oh no! Let's try to remember for next time.", nextStep);
+            }
+        }
+
+        function finishQuiz() {
+            const percentage = Math.round((points / quizData.length) * 100);
+            showScreen('screen-results');
+            document.getElementById('final-score').innerText = percentage + "%";
+            
+            saveToSheets(percentage);
+
+            if (percentage >= 80) {
+                document.getElementById('reward-zone').innerHTML = `
+                    <div class="mb-4 text-yellow-300 text-6xl">🏆</div>
+                    <p class="text-white text-xl mb-6">Congratulations! You won the Gold Diploma! 🎖️</p>
+                    <button onclick="generateDiploma(${percentage})" class="bg-yellow-400 text-indigo-900 font-bold-game py-3 px-8 rounded-full text-lg shadow-xl">
+                        Download my Diploma 📄
+                    </button>
+                `;
+                confetti({ particleCount: 200, spread: 160 });
+            } else {
+                document.getElementById('reward-zone').innerHTML = `
+                    <p class="text-white text-xl">Good attempt! You need 80% to get the diploma. 💪</p>
+                `;
+            }
+        }
+
+        // --- SAVE TO GOOGLE SHEETS ---
+        async function saveToSheets(percentage) {
+            const data = {
+                name: userName,
+                grade: "1st Grade",
+                testResult: percentage + "%",
+                date: new Date().toLocaleString()
+            };
+
+            try {
+                await fetch(ENDPOINT, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } catch (e) {
+                console.error("Error saving data", e);
+            }
+        }
+
+        // --- DIPLOMA GENERATION ---
+        function generateDiploma(percentage) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape' });
+            const w = doc.internal.pageSize.getWidth();
+            const h = doc.internal.pageSize.getHeight();
+
+            doc.setFillColor(240, 240, 240);
+            doc.rect(0, 0, w, h, 'F');
+            
+            doc.setDrawColor(70, 80, 180);
+            doc.setLineWidth(2);
+            doc.rect(10, 10, w-20, h-20);
+            doc.setLineWidth(1);
+            doc.rect(12, 12, w-24, h-24);
+
+            doc.setTextColor(70, 80, 180);
+            doc.setFontSize(50);
+            doc.text("GOLD DIPLOMA", w/2, 50, { align: 'center' });
+            
+            doc.setFontSize(20);
+            doc.text("Academic Excellence - FOOTPRINTS", w/2, 65, { align: 'center' });
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(16);
+            doc.text("Proudly awarded to:", w/2, 90, { align: 'center' });
+            
+            doc.setFontSize(35);
+            doc.setTextColor(218, 165, 32); 
+            doc.text(userName.toUpperCase(), w/2, 110, { align: 'center' });
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.text(`For successfully completing the English First Quarter Exam`, w/2, 130, { align: 'center' });
+            doc.text(`with an outstanding score of ${percentage}%`, w/2, 140, { align: 'center' });
+
+            doc.setDrawColor(218, 165, 32);
+            doc.setLineWidth(1);
+            doc.circle(w - 50, h - 50, 20);
+            doc.circle(w - 50, h - 50, 18);
+            doc.setFontSize(8);
+            doc.text("EXCELLENCE", w - 50, h - 52, { align: 'center' });
+            doc.text("CERTIFIED", w - 50, h - 48, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.text(`Date: ${new Date().toLocaleDateString()}`, 30, h - 30);
+            doc.line(w - 90, h - 30, w - 30, h - 30);
+            doc.text("Ing. Milko Gonzales C.", w - 60, h - 25, { align: 'center' });
+
+            doc.save(`Diploma_Footprints_${userName}.pdf`);
+        }
+    </script>
+</body>
+</html>
